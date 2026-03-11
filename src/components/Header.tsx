@@ -8,6 +8,7 @@ const NAV_ITEMS = [
   { label: "Research", href: "/research" },
   { label: "Teach Mode", href: "/teach" },
   { label: "Analyst Mode", href: "/analyst" },
+  { label: "Videos", href: "/videos" },
 ];
 
 export default function Header() {

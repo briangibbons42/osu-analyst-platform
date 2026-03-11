@@ -6,40 +6,10 @@ import TeachStep from "@/components/TeachStep";
 import ModelGrid from "@/components/ModelGrid";
 import FramingRow from "@/components/FramingRow";
 import VideoHelp from "@/components/VideoHelp";
+import FinancialLoader from "@/components/FinancialLoader";
 import { EXPLAINER_VIDEOS } from "@/lib/explainer-videos";
 import type { FramingValue } from "@/lib/types";
-
-const HISTORICAL_PERIODS = ["FY2022", "FY2023", "FY2024"];
-const PROJECTION_PERIODS = ["FY2025E", "FY2026E", "FY2027E"];
-const ALL_PERIODS = [...HISTORICAL_PERIODS, ...PROJECTION_PERIODS];
-
-const INITIAL_IS_ROWS = [
-  { label: "Revenue", isHeader: false, values: buildValues(30000, 25000, 28000) },
-  { label: "Cost of Revenue", isHeader: false, values: buildValues(-18000, -17000, -16800) },
-  { label: "Gross Profit", isHeader: true, values: buildValues(12000, 8000, 11200) },
-  { label: "R&D Expense", isHeader: false, values: buildValues(-3200, -3100, -3400) },
-  { label: "SG&A Expense", isHeader: false, values: buildValues(-1200, -1100, -1300) },
-  { label: "Operating Income", isHeader: true, values: buildValues(7600, 3800, 6500) },
-  { label: "Interest Expense", isHeader: false, values: buildValues(-400, -450, -380) },
-  { label: "Pre-Tax Income", isHeader: true, values: buildValues(7200, 3350, 6120) },
-  { label: "Tax Expense", isHeader: false, values: buildValues(-1512, -704, -1285) },
-  { label: "Net Income", isHeader: true, values: buildValues(5688, 2646, 4835) },
-];
-
-function buildValues(
-  fy22: number,
-  fy23: number,
-  fy24: number
-): Record<string, number | null> {
-  return {
-    FY2022: fy22,
-    FY2023: fy23,
-    FY2024: fy24,
-    "FY2025E": null,
-    "FY2026E": null,
-    "FY2027E": null,
-  };
-}
+import type { HistoricalFinancials, StatementRow } from "@/lib/xbrl-parser";
 
 export default function TeachThreeStatementPage({
   params,
@@ -48,35 +18,6 @@ export default function TeachThreeStatementPage({
 }) {
   const { ticker } = use(params);
   const t = ticker.toUpperCase();
-  const [currentStep, setCurrentStep] = useState(0);
-  const [rows, setRows] = useState(INITIAL_IS_ROWS);
-
-  const [revenueFraming, setRevenueFraming] = useState<FramingValue>({
-    label: "Revenue Growth (%)",
-    yourAssumption: null,
-    management: 15,
-    consensus: 12,
-    unit: "%",
-  });
-
-  const [marginFraming, setMarginFraming] = useState<FramingValue>({
-    label: "Gross Margin (%)",
-    yourAssumption: null,
-    management: 42,
-    consensus: 40,
-    unit: "%",
-  });
-
-  function handleCellChange(rowIndex: number, col: string, value: number | null) {
-    setRows((prev) => {
-      const updated = [...prev];
-      updated[rowIndex] = {
-        ...updated[rowIndex],
-        values: { ...updated[rowIndex].values, [col]: value },
-      };
-      return updated;
-    });
-  }
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-12">
@@ -88,7 +29,7 @@ export default function TeachThreeStatementPage({
       </h1>
       <p className="mb-8 text-sm leading-relaxed text-body-text">
         Map data from SEC filings to the Income Statement, Balance Sheet, and
-        Cash Flow Statement. Historical data is pre-loaded from EDGAR;{" "}
+        Cash Flow Statement. Historical data is loaded live from EDGAR;{" "}
         <strong>projected periods are your assumptions</strong>.
       </p>
 
@@ -96,12 +37,77 @@ export default function TeachThreeStatementPage({
         <VideoHelp video={EXPLAINER_VIDEOS["three-statement-model"]} />
       </div>
 
+      <FinancialLoader ticker={t}>
+        {(data) => <TeachModelContent data={data} ticker={t} />}
+      </FinancialLoader>
+    </div>
+  );
+}
+
+function TeachModelContent({
+  data,
+  ticker,
+}: {
+  data: HistoricalFinancials;
+  ticker: string;
+}) {
+  const historical = data.periods.filter((p) => !p.endsWith("E"));
+  const projected = data.periods.filter((p) => p.endsWith("E"));
+  const allPeriods = [...historical, ...projected];
+
+  const [currentStep, setCurrentStep] = useState(0);
+  const [isRows, setIsRows] = useState(data.incomeStatement);
+
+  const [revenueFraming, setRevenueFraming] = useState<FramingValue>({
+    label: "Revenue Growth (%)",
+    yourAssumption: null,
+    management: null,
+    consensus: null,
+    unit: "%",
+  });
+
+  const [marginFraming, setMarginFraming] = useState<FramingValue>({
+    label: "Gross Margin (%)",
+    yourAssumption: null,
+    management: null,
+    consensus: null,
+    unit: "%",
+  });
+
+  function handleCellChange(
+    rowIndex: number,
+    col: string,
+    value: number | null
+  ) {
+    setIsRows((prev: StatementRow[]) => {
+      const updated = [...prev];
+      updated[rowIndex] = {
+        ...updated[rowIndex],
+        values: { ...updated[rowIndex].values, [col]: value },
+      };
+      return updated;
+    });
+  }
+
+  return (
+    <>
+      <div className="mb-6 rounded-lg border border-green-200 bg-green-50 p-3">
+        <p className="text-sm text-green-800">
+          <strong>Live EDGAR data loaded</strong> for {data.companyName} (
+          {data.ticker}). Historical data below is real — pulled from SEC XBRL
+          filings.
+        </p>
+        <p className="mt-1 text-xs text-green-700">
+          Source: SEC XBRL Company Facts API &middot; CIK {data.cik}
+        </p>
+      </div>
+
       <div className="mb-10 space-y-4">
         <TeachStep
           stepNumber={1}
           title="Review Historical Data"
-          description="Look at the historical financials (FY2022–FY2024). These come from SEC filings. Understand the trends before projecting."
-          hint="Notice how Revenue and Gross Profit move together. What's the historical gross margin trend?"
+          description={`Look at the historical financials (${historical.join(", ")}). These are real numbers from ${data.companyName}'s SEC filings. Understand the trends before projecting.`}
+          hint="Look at how Revenue, Gross Profit, and Net Income have changed over the past 3 years. What's the story? Is the business growing, shrinking, or cyclical?"
           completed={currentStep > 0}
           active={currentStep === 0}
         >
@@ -117,7 +123,7 @@ export default function TeachThreeStatementPage({
           stepNumber={2}
           title="Frame Key Drivers vs Consensus & Management"
           description="Before projecting, enter your assumptions for key drivers and compare them to management guidance and Street consensus."
-          hint="Revenue growth and gross margin are the two most important drivers. How does your view differ from the Street?"
+          hint="Revenue growth and gross margin are typically the two most important drivers. Enter management's guidance and consensus estimates, then your own view."
           video={EXPLAINER_VIDEOS["segments-guidance"]}
           completed={currentStep > 1}
           active={currentStep === 1}
@@ -145,7 +151,7 @@ export default function TeachThreeStatementPage({
         <TeachStep
           stepNumber={3}
           title="Project Future Periods"
-          description="Fill in the projected columns (FY2025E–FY2027E). Your assumptions from Step 2 should drive these numbers."
+          description={`Fill in the projected columns (${projected.join(", ")}). Your assumptions from Step 2 should drive these numbers.`}
           hint="Start with Revenue using your growth assumption, then work down the income statement. Each line should tie to your thesis."
           completed={currentStep > 2}
           active={currentStep === 2}
@@ -161,27 +167,49 @@ export default function TeachThreeStatementPage({
 
       <ModelGrid
         title="Income Statement ($M)"
-        headers={ALL_PERIODS}
-        rows={rows}
-        editableColumns={PROJECTION_PERIODS}
+        headers={allPeriods}
+        rows={isRows}
+        editableColumns={projected}
         onCellChange={handleCellChange}
         showTeachNotes={currentStep <= 2}
-        teachNote="Historical data (FY2022–FY2024) comes from SEC filings. Projected periods (FY2025E–FY2027E) are where your assumptions go. Each editable cell should tie back to your thesis and the framing above."
+        teachNote={`Historical data (${historical.join(", ")}) is from ${data.companyName}'s SEC filings. Projected periods (${projected.join(", ")}) are where your assumptions go. Each editable cell should tie back to your thesis and the framing above.`}
       />
+
+      {data.balanceSheet.length > 0 && (
+        <div className="mt-8">
+          <ModelGrid
+            title="Balance Sheet ($M)"
+            headers={allPeriods}
+            rows={data.balanceSheet}
+            editableColumns={projected}
+          />
+        </div>
+      )}
+
+      {data.cashFlow.length > 0 && (
+        <div className="mt-8">
+          <ModelGrid
+            title="Cash Flow Statement ($M)"
+            headers={allPeriods}
+            rows={data.cashFlow}
+            editableColumns={projected}
+          />
+        </div>
+      )}
 
       {currentStep >= 3 && (
         <div className="mt-8 text-center">
           <p className="mb-4 text-sm font-semibold text-green-600">
-            ✓ Income Statement complete. Next: construct your DCF.
+            ✓ Financial statements reviewed. Next: construct your DCF.
           </p>
           <Link
-            href={`/teach/${t}/dcf`}
+            href={`/teach/${ticker}/dcf`}
             className="inline-block rounded-md bg-beaver-orange px-8 py-3 text-sm font-bold text-white hover:bg-orange-hover"
           >
             Continue to DCF &rarr;
           </Link>
         </div>
       )}
-    </div>
+    </>
   );
 }

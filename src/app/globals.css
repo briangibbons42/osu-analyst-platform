@@ -1,26 +1,41 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --beaver-orange: #D73F09;
+  --paddletail-black: #000000;
+  --bucktooth-white: #FFFFFF;
+  --page-bg: #f7f5f5;
+  --nav-bg: #e9e5e4;
+  --body-text: #423e3c;
+  --dark-section: #212529;
+
+  --background: var(--page-bg);
+  --foreground: var(--body-text);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-beaver-orange: #D73F09;
+  --color-paddletail-black: #000000;
+  --color-bucktooth-white: #FFFFFF;
+  --color-page-bg: #f7f5f5;
+  --color-nav-bg: #e9e5e4;
+  --color-body-text: #423e3c;
+  --color-dark-section: #212529;
+  --color-orange-hover: #c13808;
+  --color-light-gray: #d4d0cf;
+  --font-sans: var(--font-open-sans);
+  --font-serif: Georgia, "Times New Roman", serif;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-open-sans), Arial, Helvetica, sans-serif;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 700;
+  color: var(--paddletail-black);
 }
